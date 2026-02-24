@@ -35,22 +35,22 @@ EVERY tweet:
 - Emojis: 💕🐾🌸🩷✨👑 (2-4)
 - After main text, exactly 2 or 3 hashtags from: #GentleFindom #SoftFindom #MaleFindom #BFEFindom #Femboy #Sissy #PetPlay #SissyTraining #CashPup #NSFWFemboy #SoftDom #SissyHypno #GentleOwnership
 
-Output ONLY the full tweet (main text + hashtags)."""
+Output ONLY the raw tweet text. No quotes, no extra words."""
 
 def generate_tweet():
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
         "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": "Generate one fresh tweet right now for a needy boy scrolling late at night."}
-        ],
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Generate one fresh tweet right now for a needy boy scrolling late at night."}],
         "max_tokens": 400,
-        "temperature": 0.87
+        "temperature": 0.85
     }
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     response = requests.post(url, json=payload, headers=headers).json()
-    return response["choices"][0]["message"]["content"].strip()
+    tweet = response["choices"][0]["message"]["content"].strip()
+    if tweet.startswith('"') and tweet.endswith('"'):
+        tweet = tweet[1:-1].strip()
+    return tweet
 
 def get_random_image_url():
     tag_sets = [
@@ -62,38 +62,47 @@ def get_random_image_url():
     ]
     tags = random.choice(tag_sets) + " sort:random"
     try:
-        data = requests.get(f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=1&tags={tags}", timeout=10).json()
-        return data["post"][0]["file_url"] if data.get("post") else None
-    except:
+        data = requests.get(f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=1&tags={tags}", timeout=12).json()
+        post = data.get("post", [{}])[0]
+        return post.get("file_url") or post.get("sample_url")
+    except Exception as e:
+        print(f"⚠️ Gelbooru failed: {e}")
         return None
 
 def download_and_post(tweet_text):
-    image_url = get_random_image_url()          # ← ALWAYS try for image now
+    print(f"🎲 New tweet ready: {tweet_text[:80]}...")
+    
+    image_url = get_random_image_url()
     media_id = None
+    
     if image_url:
+        print(f"📸 Found image URL → trying to attach...")
         try:
-            img_data = requests.get(image_url).content
+            img_data = requests.get(image_url, timeout=15).content
             with open("/tmp/image.jpg", "wb") as f:
                 f.write(img_data)
             media = client.media_upload(filename="/tmp/image.jpg")
             media_id = [media.media_id]
             os.remove("/tmp/image.jpg")
-            print("🖼️ Image attached successfully")
-        except:
-            print("⚠️ Image failed, posting text only")
+            print("✅ Image successfully attached!")
+        except Exception as e:
+            print(f"❌ Image upload failed: {e}")
+    else:
+        print("⚠️ No image found this time (rare)")
+
     try:
         client.create_tweet(text=tweet_text, media_ids=media_id)
-        print(f"✅ Posted — {tweet_text[:70]}...")
+        print(f"✅ Tweet posted {'WITH IMAGE' if media_id else 'text only'}")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Tweet failed: {e}")
 
 def bot_loop():
-    print("🚀 Soft Findom Bot LIVE on Render — every tweet with image now 💕🐾")
+    print("🚀 Soft Findom Bot LIVE — EVERY tweet with image attempt 💕🐾")
     while True:
         tweet = generate_tweet()
         download_and_post(tweet)
         sleep_hours = random.uniform(5.2, 6.8)
-        print(f"⏰ Next post in {sleep_hours:.1f} hours")
+        print(f"⏰ Next tweet in {sleep_hours:.1f} hours")
         time.sleep(sleep_hours * 3600)
 
 Thread(target=bot_loop, daemon=True).start()
