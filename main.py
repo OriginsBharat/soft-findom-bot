@@ -49,51 +49,55 @@ def generate_tweet():
     return tweet
 
 def get_random_image_url():
-    print("🔍 Searching rule34 for image...")
-    tags = "femboy collar leash petplay male rating:explicit -female -1girl sort:random"
+    print("🔍 Searching for image...")
+    tag_list = [
+        "femboy collar rating:explicit -female",
+        "femboy leash rating:explicit -female",
+        "petplay femboy collar rating:explicit -female",
+        "sissy collar leash male rating:explicit -female",
+        "femboy owned collar rating:explicit -female"
+    ]
+    tags = random.choice(tag_list) + " sort:random"
     try:
         data = requests.get(f"https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=3&tags={tags}", timeout=12).json()
         posts = data.get("post", [])
         if posts:
             chosen = random.choice(posts)
             url = chosen.get("file_url") or chosen.get("sample_url")
-            print(f"✅ Found image: {url[:120]}...")
+            print(f"✅ Found image: {url[:100]}...")
             return url
     except Exception as e:
-        print(f"❌ Rule34 error: {e}")
-    print("⚠️ No image found")
+        print(f"❌ Error: {e}")
+    print("⚠️ No image found this time")
     return None
 
 def download_and_post(tweet_text):
-    print(f"\n🎲 New tweet: {tweet_text[:80]}...")
-    
+    print(f"🎲 New tweet: {tweet_text[:80]}...")
     image_url = get_random_image_url()
     media_id = None
     
     if image_url:
-        print("📸 Downloading image...")
         try:
             img_data = requests.get(image_url, timeout=15).content
             with open("/tmp/image.jpg", "wb") as f:
                 f.write(img_data)
-            print("📤 Uploading to X...")
             media = client.media_upload(filename="/tmp/image.jpg")
             media_id = [media.media_id]
             os.remove("/tmp/image.jpg")
-            print("✅ Image attached and posted!")
+            print("✅ Image attached successfully!")
         except Exception as e:
             print(f"❌ Image failed: {e}")
     else:
-        print("⚠️ Posting text only this time")
+        print("⚠️ Posting text only")
 
     try:
         client.create_tweet(text=tweet_text, media_ids=media_id)
-        print(f"✅ Tweet posted {'WITH IMAGE' if media_id else 'TEXT ONLY'}")
+        print(f"✅ Posted {'WITH IMAGE' if media_id else 'text only'}")
     except Exception as e:
-        print(f"❌ Tweet post failed: {e}")
+        print(f"❌ Tweet failed: {e}")
 
 def bot_loop():
-    print("🚀 Bot LIVE — images on EVERY tweet using rule34 💕🐾")
+    print("🚀 Bot LIVE — broad tags for images on every tweet 💕🐾")
     while True:
         tweet = generate_tweet()
         download_and_post(tweet)
