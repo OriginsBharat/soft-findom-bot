@@ -62,13 +62,13 @@ def get_random_image_url():
     ]
     tags = random.choice(tag_sets) + " sort:random"
     try:
-        data = requests.get(f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=1&tags={tags}", timeout=8).json()
+        data = requests.get(f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=1&tags={tags}", timeout=10).json()
         return data["post"][0]["file_url"] if data.get("post") else None
     except:
         return None
 
 def download_and_post(tweet_text):
-    image_url = get_random_image_url() if random.random() > 0.5 else None
+    image_url = get_random_image_url()          # ← ALWAYS try for image now
     media_id = None
     if image_url:
         try:
@@ -78,8 +78,9 @@ def download_and_post(tweet_text):
             media = client.media_upload(filename="/tmp/image.jpg")
             media_id = [media.media_id]
             os.remove("/tmp/image.jpg")
+            print("🖼️ Image attached successfully")
         except:
-            pass
+            print("⚠️ Image failed, posting text only")
     try:
         client.create_tweet(text=tweet_text, media_ids=media_id)
         print(f"✅ Posted — {tweet_text[:70]}...")
@@ -87,7 +88,7 @@ def download_and_post(tweet_text):
         print(f"Error: {e}")
 
 def bot_loop():
-    print("🚀 Soft Findom Bot LIVE on Render — free forever 💕🐾")
+    print("🚀 Soft Findom Bot LIVE on Render — every tweet with image now 💕🐾")
     while True:
         tweet = generate_tweet()
         download_and_post(tweet)
@@ -95,10 +96,8 @@ def bot_loop():
         print(f"⏰ Next post in {sleep_hours:.1f} hours")
         time.sleep(sleep_hours * 3600)
 
-# Start bot in background
 Thread(target=bot_loop, daemon=True).start()
 
-# Run Flask (required for Render Web Service)
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
